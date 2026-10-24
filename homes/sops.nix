@@ -77,6 +77,24 @@ in {
         mode = "0600";
         format = "yaml";
       };
+      "ssh-ksvsensor" = {
+        key = "ssh_config_ksvsensor";
+        path = "${config.home.homeDirectory}/.ssh/conf.d/ksvsensor";
+        mode = "0600";
+        format = "yaml";
+      };
+      "ssh-mt-edge" = {
+        key = "ssh_config_mt-edge";
+        path = "${config.home.homeDirectory}/.ssh/conf.d/mt-edge";
+        mode = "0600";
+        format = "yaml";
+      };
+      "ssh-mt-ap" = {
+        key = "ssh_config_mt-ap";
+        path = "${config.home.homeDirectory}/.ssh/conf.d/mt-ap";
+        mode = "0600";
+        format = "yaml";
+      };
     };
   };
 
