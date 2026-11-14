@@ -36,7 +36,7 @@
 
   gitTools = with pkgs; [
     git-filter-repo
-    lazyjj
+    # lazyjj
     pre-commit
   ];
 
@@ -52,7 +52,7 @@
     curl
     grpcurl
     wget
-    wireguard-tools
+    # wireguard-tools
   ];
 
   k8sAndOci = with pkgs; [
@@ -65,20 +65,17 @@
     kustomize
     k9s
     kubeconform
-    podman
-    podman-desktop
+    # podman
+    # podman-desktop
     docker
     cosign
   ];
 
   iacAndCD = with pkgs; [
-    bazel-buildtools
-    bazelisk
     infracost
     tfenv
     terraform-docs
     tflint
-    trivy
     gitleaks
   ];
 
