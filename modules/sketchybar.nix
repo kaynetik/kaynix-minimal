@@ -1,24 +1,26 @@
 {
   pkgs,
   username,
-  hostConfig,
   ...
-}: {
+}: let
+  luaLibDir = drv: "${drv}/lib/lua/${pkgs.lua5_5.luaversion}";
+in {
   services.sketchybar = {
     enable = true;
     extraPackages = [pkgs.lua5_5 pkgs.sbarlua];
   };
 
   launchd.user.agents.sketchybar = {
-    # services.sketchybar builds the agent PATH from environment.systemPath, whose
-    # "$HOME"/"$USER" entries launchd never expands, so per-user profile binaries
-    # (SwitchAudioSource, jq, macmon) are unreachable from widgets. The launchd
-    # module's `path` option overrides environment.PATH, so it must be fixed here;
-    # list entries merge with the module's own.
+    # The module's agent PATH has "$HOME"/"$USER" entries launchd never
+    # expands, so widgets cannot reach per-user binaries (SwitchAudioSource,
+    # jq, macmon) without this.
     path = ["/etc/profiles/per-user/${username}/bin"];
-    environment = {
-      LUA_CPATH = pkgs.kaynixLib.luaCpath;
-      SKETCHYBAR_THEME = hostConfig.sketchybar.theme;
-    };
+    # Where the Lua config (homes/static/sketchybar) finds the sbarlua module.
+    environment.LUA_CPATH = builtins.concatStringsSep ";" [
+      "${luaLibDir pkgs.lua5_5}/?.so"
+      "${luaLibDir pkgs.lua5_5}/loadall.so"
+      "${luaLibDir pkgs.sbarlua}/?.so"
+      "./?.so"
+    ];
   };
 }

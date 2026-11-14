@@ -1,17 +1,11 @@
 {
-  config,
   lib,
   pkgs,
   kaynixStatic,
-  hostConfig,
   ...
 }: let
-  cfg = config.kaynix.programs.sketchybar;
-
-  # Vendored FelixKratz event provider: pushes en0 throughput to sketchybar over
-  # its Mach port every N seconds (spawned by items/widgets/wifi.lua, which finds
-  # it on the LaunchAgent PATH). Packaged here so the bar never compiles anything
-  # at startup and the binary has store provenance like every other package.
+  # Vendored FelixKratz event provider: pushes en0 throughput to sketchybar.
+  # items/widgets/wifi.lua spawns it from the LaunchAgent PATH.
   network-load = pkgs.stdenv.mkDerivation {
     pname = "sketchybar-network-load";
     version = "0-unstable-2026-07-04";
@@ -38,19 +32,11 @@
     };
   };
 in {
-  options.kaynix.programs.sketchybar = {
-    enable = lib.mkEnableOption "sketchybar";
-  };
+  home.packages = [network-load];
 
-  config = lib.mkIf (cfg.enable && pkgs.stdenv.hostPlatform.isDarwin) {
-    home.packages = [network-load];
-
-    xdg.configFile."sketchybar" = {
-      source = "${kaynixStatic}/sketchybar";
-      recursive = true;
-    };
-
-    # Matches launchd (modules/sketchybar.nix); set theme in flake host `config.sketchybar.theme`.
-    home.sessionVariables.SKETCHYBAR_THEME = hostConfig.sketchybar.theme;
+  # The bar itself is the nix-darwin service in modules/sketchybar.nix.
+  xdg.configFile."sketchybar" = {
+    source = "${kaynixStatic}/sketchybar";
+    recursive = true;
   };
 }

@@ -2,10 +2,9 @@
 # Requires: autoload -Uz colors && colors (for $fg / $reset_color)
 # Requires: kubectl in PATH
 #
-# KUBE_CTX_ALIASES is populated by the sops-decrypted file
-# conf-kube-ctx-aliases.zsh (sourced from initContent before this file).
-# If that file is missing (e.g. no YubiKey), the map stays empty and
-# the prompt falls back to showing the raw context name.
+# KUBE_CTX_ALIASES can be filled by an unmanaged ~/.config/zsh/conf-*.zsh
+# fragment (sourced before this file). Without one the map stays empty and
+# the prompt shows the raw context name.
 
 typeset -gA KUBE_CTX_ALIASES
 

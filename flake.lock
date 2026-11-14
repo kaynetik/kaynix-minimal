@@ -20,24 +20,6 @@
         "type": "github"
       }
     },
-    "flake-utils": {
-      "inputs": {
-        "systems": "systems"
-      },
-      "locked": {
-        "lastModified": 1731533236,
-        "narHash": "sha256-l0KFg5HjrsfsO/JpG+r7fRrqm12kzFHyUHqHCVpMMbI=",
-        "owner": "numtide",
-        "repo": "flake-utils",
-        "rev": "11707dc2f618dd54ca8739b309ec4fc024de578b",
-        "type": "github"
-      },
-      "original": {
-        "owner": "numtide",
-        "repo": "flake-utils",
-        "type": "github"
-      }
-    },
     "home-manager": {
       "inputs": {
         "nixpkgs": [
@@ -78,81 +60,7 @@
       "inputs": {
         "darwin": "darwin",
         "home-manager": "home-manager",
-        "nixpkgs": [
-          "nixpkgs-darwin"
-        ],
-        "nixpkgs-darwin": "nixpkgs-darwin",
-        "solc-nix": "solc-nix",
-        "sops-nix": "sops-nix"
-      }
-    },
-    "solc-macos-amd64-list-json": {
-      "flake": false,
-      "locked": {
-        "narHash": "sha256-umYJxSnvOdLAKgeqojpevvEEt8qnL2lk/jWbR9HjzNg=",
-        "type": "file",
-        "url": "https://github.com/argotorg/solc-bin/raw/8d513ea/macosx-amd64/list.json"
-      },
-      "original": {
-        "type": "file",
-        "url": "https://github.com/argotorg/solc-bin/raw/8d513ea/macosx-amd64/list.json"
-      }
-    },
-    "solc-nix": {
-      "inputs": {
-        "flake-utils": "flake-utils",
-        "nixpkgs": [
-          "nixpkgs-darwin"
-        ],
-        "solc-macos-amd64-list-json": "solc-macos-amd64-list-json"
-      },
-      "locked": {
-        "lastModified": 1791201828,
-        "narHash": "sha256-NblaqZuvcCv7aksTwd/4PCwZ46vJGMpdRF0uiYZMETw=",
-        "owner": "hellwolf",
-        "repo": "solc.nix",
-        "rev": "ee463e08042dcc41e69ebfbee8f5a9842dcf18ba",
-        "type": "github"
-      },
-      "original": {
-        "owner": "hellwolf",
-        "repo": "solc.nix",
-        "type": "github"
-      }
-    },
-    "sops-nix": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs-darwin"
-        ]
-      },
-      "locked": {
-        "lastModified": 1794261845,
-        "narHash": "sha256-Ivif/kuD68yEOKcZZG3zSwNMFUuIgzUgeJuzcHrQy+8=",
-        "owner": "Mic92",
-        "repo": "sops-nix",
-        "rev": "fe7b4228405aeac2ce7192c2049a6e2bc8637082",
-        "type": "github"
-      },
-      "original": {
-        "owner": "Mic92",
-        "repo": "sops-nix",
-        "type": "github"
-      }
-    },
-    "systems": {
-      "locked": {
-        "lastModified": 1681028828,
-        "narHash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",
-        "owner": "nix-systems",
-        "repo": "default",
-        "rev": "da67096a3b9bf56a91d16901293e51ba5b49a27e",
-        "type": "github"
-      },
-      "original": {
-        "owner": "nix-systems",
-        "repo": "default",
-        "type": "github"
+        "nixpkgs-darwin": "nixpkgs-darwin"
       }
     }
   },

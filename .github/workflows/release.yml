@@ -27,7 +27,7 @@ jobs:
         uses: DeterminateSystems/nix-installer-action@v21
 
       - name: Flake check
-        run: nix flake check --no-build --accept-flake-config
+        run: nix flake check --no-build
 
   release:
     name: Create GitHub Release

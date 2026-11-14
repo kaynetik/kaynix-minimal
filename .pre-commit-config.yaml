@@ -23,12 +23,6 @@ repos:
 
   - repo: local
     hooks:
-      - id: sops-encrypted
-        name: Secrets are sops-encrypted
-        entry: .pre-commit-hooks/sops-encrypted.sh
-        language: script
-        files: ^secrets/.*\.ya?ml$
-
       - id: gitleaks
         name: gitleaks
         entry: gitleaks git --pre-commit --staged --redact --verbose

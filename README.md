@@ -1,140 +1,80 @@
-<h3 align="center">
- <br/>
- <img src="https://raw.githubusercontent.com/catppuccin/catppuccin/main/assets/misc/transparent.png" height="30" width="0px"/>
-  nix-darwin config for <a href="https://github.com/kaynetik">kaynetik</a>
- <img src="https://raw.githubusercontent.com/catppuccin/catppuccin/main/assets/misc/transparent.png" height="30" width="0px"/>
-</h3>
+# kaynix-minimal
 
-<p align="center">
- <a href="https://github.com/kaynetik/kaynix/commits"><img src="https://img.shields.io/github/last-commit/kaynetik/kaynix?colorA=363a4f&colorB=f5a97f&style=for-the-badge" alt="Last commit"></a>
- <a href="https://github.com/kaynetik/kaynix/actions/workflows/security.yml"><img src="https://img.shields.io/github/actions/workflow/status/kaynetik/kaynix/security.yml?branch=main&amp;colorA=363a4f&amp;style=for-the-badge&amp;logo=github&amp;logoColor=d8dee9&amp;label=Security" alt="Security CI workflow status"></a>
- <a href="https://github.com/kaynetik/kaynix/blob/main/.github/workflows/security.yml"><img src="https://img.shields.io/static/v1?label=CI%20runners&amp;message=Ubuntu%20%26%20macOS&amp;labelColor=363a4f&amp;color=cad3f5&amp;logo=githubactions&amp;logoColor=d8dee9&amp;style=for-the-badge" alt="CI runs on Ubuntu and macOS"></a>
- <a href="https://github.com/kaynetik/kaynix/blob/main/LICENSE"><img src="https://img.shields.io/github/license/kaynetik/kaynix?colorA=363a4f&colorB=b7bdf8&style=for-the-badge" alt="License"></a>
-
- <a href="https://wiki.nixos.org/wiki/Flakes" target="_blank">
- <img alt="Nix Flakes Ready" src="https://img.shields.io/static/v1?logo=nixos&logoColor=d8dee9&label=Nix%20Flakes&labelColor=5e81ac&message=Ready&color=d8dee9&style=for-the-badge">
- </a>
-</p>
-
----
-
-# kaynix
-
-Personal [nix-darwin](https://github.com/nix-darwin/nix-darwin) flake with [Home Manager](https://github.com/nix-community/home-manager) and [sops-nix](https://github.com/Mic92/sops-nix). System modules live under `modules/`; user config is `homes/kaynetik.nix`.
+Minimal [nix-darwin](https://github.com/nix-darwin/nix-darwin) flake with [Home Manager](https://github.com/nix-community/home-manager), built around [AeroSpace](https://github.com/nikitabobko/AeroSpace) and [SketchyBar](https://github.com/FelixKratz/SketchyBar). One host (`mbp`, `aarch64-darwin`), one user, no secrets management.
 
 ## Prerequisites
 
-1. **Install [Lix](https://lix.systems/)** using the [Lix installer](https://lix.systems/install/#on-any-other-linuxmacos-system) (flakes and the `nix` CLI are enabled for this flake):
+1. Install [Lix](https://lix.systems/):
+
+   ```bash
+   curl -sSf -L https://install.lix.systems/lix | sh -s -- install
+   ```
+
+2. Install [Homebrew](https://brew.sh/), which `modules/homebrew.nix` needs for casks and brews:
+
+   ```bash
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+   ```
+
+## Deploy
+
+Hostname and username are set at the top of the `outputs` block in `flake.nix`.
 
 ```bash
-curl -sSf -L https://install.lix.systems/lix | sh -s -- install
+git clone https://github.com/kaynetik/kaynix-minimal.git ~/Development/Personal/kaynix-minimal
+cd ~/Development/Personal/kaynix-minimal
+
+# First run: bootstraps nix-darwin and Home Manager
+nix build .#darwinConfigurations.mbp.system
+sudo ./result/sw/bin/darwin-rebuild switch --flake .#mbp
+
+# Afterwards
+sudo darwin-rebuild switch --flake .#mbp
 ```
 
-2. **Install [Homebrew](https://brew.sh/)** -- required for the casks and brews declared in `modules/homebrew.nix` (GUI apps and CLI tools not packaged in nixpkgs):
+The clone path matters: `modules/home/programs/git` and `modules/home/packages.nix` reference `~/Development/Personal/kaynix-minimal`.
 
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
+## Make it yours
 
-3. **Familiarize yourself** with `flake.nix`, `modules/`, and `homes/kaynetik.nix` before switching. For background on flakes and nix-darwin, [ryan4yin/nixos-and-flakes-book](https://github.com/ryan4yin/nixos-and-flakes-book) is a solid intro.
+Before the first switch, change what is specific to the original author:
 
-## First deploy
+| What | Where |
+| --- | --- |
+| `username`, `hostname`, `system` | top of `outputs` in `flake.nix` |
+| Git name, email, PGP signing key, ssh key path | `modules/home/identity.nix` |
+| Commit signing (needs that PGP key to exist) | `signing` in `modules/home/programs/git/default.nix` |
+| Time zone, DNS servers, macOS defaults | `modules/system.nix` |
+| Apps installed through Homebrew | `modules/homebrew.nix` |
+| CLI packages | `modules/home/packages.nix` |
+| Keybindings, workspaces, startup commands | `modules/aerospace.nix` |
 
-The flake defines per-host entries in the `hosts` attrset inside `flake.nix` (currently `mbp`). Replace `HOSTNAME` below with whichever entry matches your machine, or add a new one first.
-
-```bash
-# 1. Clone the repo
-git clone https://github.com/kaynetik/kaynix.git
-cd kaynix
-
-# 2. Build the system derivation
-nix build .#darwinConfigurations.HOSTNAME.system
-
-# 3. Apply (first run bootstraps nix-darwin + Home Manager)
-./result/sw/bin/darwin-rebuild switch --flake .#HOSTNAME
-```
-
-Subsequent rebuilds only need step 3 (or `darwin-rebuild switch --flake .#HOSTNAME` once nix-darwin is on `$PATH`).
-
-## Architecture
-
-```mermaid
-graph TD
-    subgraph inputs["Flake Inputs"]
-        NP["nixpkgs-darwin<br/><i>follows nixpkgs-unstable</i>"]
-        DW["darwin<br/><i>nix-darwin</i>"]
-        HMI["home-manager"]
-        SOPS["sops-nix"]
-    end
-
-    F["flake.nix<br/>hosts: mbp<br/>+ devShells, formatter"]
-
-    subgraph darwin["darwinConfigurations (per host)"]
-        direction LR
-        NC["nix-core.nix<br/>nixpkgs, overlays, GC"]
-        SYS["system.nix<br/>macOS defaults, Touch ID"]
-        APPS["homebrew.nix + fonts.nix<br/>+ sketchybar.nix"]
-        HU["host-users.nix<br/>hostname, DNS, users"]
-        AERO["aerospace.nix<br/>tiling WM"]
-        NETBIRD["netbird.nix<br/>NetBird daemon (LaunchDaemon)"]
-    end
-
-    subgraph hm["Home Manager (embedded in darwin)"]
-        KN["homes/kaynetik.nix<br/>program toggles, session"]
-        SOPS_HM["homes/sops.nix<br/>secret paths, activation, rekey"]
-
-        subgraph hmmod["modules/home/"]
-            direction LR
-            PKG["packages.nix<br/>CLI tools, runtimes, scripts/"]
-            PROGS["programs/*<br/>zsh, git, neovim, tmux,<br/>terminals, ssh, fzf, atuin,<br/>sketchybar, lazygit, jujutsu, ..."]
-        end
-
-        STATIC["homes/static/<br/>nvim, tmux, alacritty,<br/>sketchybar, zsh, git, sops"]
-    end
-
-    inputs --> F
-    F --> darwin
-    darwin -- "darwinModules.home-manager" --> hm
-    KN --> SOPS_HM
-    KN --> hmmod
-    PROGS --> STATIC
-    SOPS["sops-nix"] -. "sharedModules" .-> SOPS_HM
-```
-
-
-
-## Secrets (SOPS + YubiKey)
-
-Secrets are encrypted at rest in `secrets/secrets.yaml`, decrypted at Home Manager activation by sops-nix. See `secrets/README.md` for editing and `yubikey.md` for the full YubiKey setup.
-
-```mermaid
-flowchart LR
-    YK["YubiKey (PIV slot)"]
-    PLUGIN["age-plugin-yubikey"]
-    ID["~/.config/sops/age/<br/>identity stub"]
-    SOPSF["secrets/secrets.yaml<br/>(encrypted)"]
-    SOPSNIX["sops-nix<br/>(HM activation)"]
-    PLAIN["~/.config/zsh/conf-*.zsh<br/>~/.ssh/conf.d/work<br/>(decrypted, 0600)"]
-
-    YK -- "PIV PIN + touch" --> PLUGIN
-    PLUGIN --> ID
-    ID --> SOPSNIX
-    SOPSF --> SOPSNIX
-    SOPSNIX --> PLAIN
-```
-
+Rename `homes/kaynetik.nix` if you like; it is imported once, in `flake.nix`.
 
 ## Layout
 
 ```text
 .
-├── flake.nix          # inputs, hosts, darwinConfigurations, devShells
-├── flake.lock
-├── modules/           # nix-darwin system modules + modules/home/ (HM programs)
+├── flake.nix          # inputs, package overlay, the darwin system, lint shell
+├── modules/           # nix-darwin modules
+│   ├── aerospace.nix  # tiling WM, keybindings
+│   ├── sketchybar.nix # bar service (config: homes/static/sketchybar)
+│   ├── system.nix     # macOS defaults, networking, fonts, stateVersion
+│   ├── nix-core.nix   # nix settings, GC
+│   ├── homebrew.nix   # casks and brews
+│   ├── pki.nix        # CA bundle hardening
+│   └── home/          # Home Manager: packages.nix, identity.nix, programs/*
 ├── homes/
-│   ├── kaynetik.nix   # Home Manager user config (program toggles)
-│   ├── sops.nix       # sops-nix secret paths, activation, rekey script
+│   ├── kaynetik.nix   # Home Manager entry point, stateVersion
 │   └── static/        # dotfiles: nvim, tmux, alacritty, sketchybar, zsh, git
-├── secrets/           # sops-encrypted secrets (see secrets/README.md)
 └── scripts/           # helper scripts installed into home.packages
 ```
+
+## Maintenance
+
+- **Local, untracked config**: zsh sources `~/.config/zsh/conf-*.zsh` and ssh includes `~/.ssh/conf.d/*`. Put machine or work specific settings there.
+- **Removing a program**: delete its import or block in `modules/home/default.nix`.
+- **SketchyBar theme**: the default palette is set in `homes/static/sketchybar/colors.lua`.
+- **Updating**: `nix flake update`, then rebuild. If a package fails to build after an update, remove it from `modules/home/packages.nix` or roll back `flake.lock` with git.
+- **Homebrew cleanup**: `modules/homebrew.nix` uses `cleanup = "none"`, so packages installed by hand are kept. `"zap"` makes the lists authoritative and uninstalls everything else.
+- **State versions**: `system.stateVersion` (`modules/system.nix`) and `home.stateVersion` (`homes/kaynetik.nix`) pin stateful defaults. Do not raise them on an existing install without reading the release notes.
+- **Linting**: `nix develop -c pre-commit run --all-files`.

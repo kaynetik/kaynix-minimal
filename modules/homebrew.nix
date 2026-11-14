@@ -1,19 +1,19 @@
 _: {
+  # Analytics are not managed here: run `brew analytics off` once.
   homebrew = {
     enable = true;
-    # Note: Analytics still needs to be disabled manually with: brew analytics off
 
     onActivation = {
       autoUpdate = true;
-      cleanup = "zap";
+      # "none" leaves existing Homebrew packages alone. Switch to "zap" to
+      # uninstall everything not listed below, once the lists are complete.
+      cleanup = "none";
       upgrade = true;
-      extraFlags = ["--force-cleanup"];
     };
 
     brews = [
-      # Security & GPG
       "keychain"
-      "gnupg" # gpg and gpg2 are brew aliases of gnupg; one formula is enough.
+      "gnupg"
       "pinentry-mac"
       "secp256k1"
       "tor"
@@ -22,40 +22,38 @@ _: {
     casks = [
       # Browsers
       "brave-browser"
-      "google-chrome" # Used just for automated testing by agents
+      "google-chrome"
 
-      # Security & Privacy
-      "keepassxc"
+      # Security
+      # "keepassxc"
       "gpg-suite"
-      "protonvpn"
+      # "protonvpn"
       "lulu"
-      "knockknock"
-      "dhs"
-      "whatsyoursign"
-      "pareto-security" # Occasionally run security checks
+      # "knockknock"
+      # "dhs"
+      # "whatsyoursign"
+      "pareto-security"
 
-      # Productivity & Utilities
+      # Productivity
       "raycast"
       "obsidian"
 
-      # Development Tools
+      # Development
       "cursor"
-      "postman"
-      "figma"
+      # "postman"
+      # "figma"
+      # "lens"
 
       # Fonts
       "sf-symbols"
       "font-sf-pro"
       "font-sf-mono"
 
-      # Cloud & Infrastructure
-      "lens" # Rice k9s more to reach the LENS usability levels.
-
-      # Media Tools
-      "calibre"
+      # Media
+      # "calibre"
       "vlc"
-      "spotify" # Ditch this crap ASAP
-      "gimp"
+      "spotify"
+      # "gimp"
       "transmission"
 
       # Communication

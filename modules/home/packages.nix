@@ -1,10 +1,9 @@
 {
   config,
-  lib,
   pkgs,
   ...
 }: let
-  dotNixRoot = "${config.home.homeDirectory}/Development/Personal/kaynix";
+  dotNixRoot = "${config.home.homeDirectory}/Development/Personal/kaynix-minimal";
   obsidianVault = "${config.home.homeDirectory}/Documents/obsidian_vault";
 
   kaynix-scripts = pkgs.runCommand "kaynix-scripts" {} ''
@@ -54,23 +53,10 @@
     grpcurl
     wget
     wireguard-tools
-    wireguard-ui
-    netbird
-  ];
-
-  secops = with pkgs; [
-    clamav
-    osv-scanner
-    theharvester
-    trufflehog
-    sherlock
-    recon-ng
-    #dnstwist
   ];
 
   k8sAndOci = with pkgs; [
     argocd
-    mimir
     cmctl
     k3d
     kubectl
@@ -83,13 +69,11 @@
     podman-desktop
     docker
     cosign
-    rabbitmqadmin-ng
   ];
 
   iacAndCD = with pkgs; [
     bazel-buildtools
     bazelisk
-    checkov
     infracost
     tfenv
     terraform-docs
@@ -106,13 +90,6 @@
     hcloud
   ];
 
-  observability = with pkgs; [
-    grafana-alloy
-    prometheus
-    prometheus.cli
-    macmon # monitor CPU, memory - freq & temps
-  ];
-
   databases = with pkgs; [
     pgcli
     postgresql_18
@@ -126,23 +103,8 @@
   ];
 
   media = with pkgs; [
-    # audacity
     imagemagick
     languagetool
-    ## LaTeX: ocassionally used; disabled for now.
-    # pandoc
-    # typst
-    # texstudio
-    # (texliveMedium.withPackages (ps:
-    #   with ps; [
-    #     clearsans
-    #     fontaxes # required by clearsans (ClearSans.sty loads it)
-    #     marvosym
-    #     fontawesome
-    #     textpos
-    #     ragged2e
-    #     ifmtarg
-    #   ]))
   ];
 
   compilersAndRuntimes = with pkgs; [
@@ -154,54 +116,39 @@
     go
     hugo
     lua5_5
-    lua5_5.pkgs.luarocks
     nodejs_24
     protobuf
     rustup
     uv
     zig
-    foundry
-    slither-analyzer # 26.11 - too many failures!
-    solc # latest solc from nixpkgs (default `solc` on PATH)
-    solc_0_8_19 # pinned solc 0.8.19 (exposed as `solc-0.8.19`) via solc-nix overlay
-    svm-rs # alloy-rs svm CLI (`svm install 0.8.19`, `svm use 0.8.19`)
   ];
 
   nixRebuildTools = with pkgs; [
-    nil # Nix LSP
+    nil
     nixos-rebuild
     nixpkgs-review
   ];
 
-  sshAndAge = with pkgs; [
-    age
-    sops
-    age-plugin-yubikey
+  sshAndKeys = with pkgs; [
     openssh
-    yubikey-agent
     yubikey-manager
     dotenvx
   ];
 
-  darwinOnly = with pkgs; [
+  # Runtime dependencies of the aerospace and sketchybar configs.
+  desktop = with pkgs; [
     jankyborders
+    macmon
     nowplaying-cli
-    sbarlua
     switchaudio-osx
     shottr
     macfuse-stubs
     e2fsprogs
-    # python314Packages.mlx-lm # Apple Silicon LLM runner (mlx_lm.* CLIs)
   ];
 in {
-  targets.darwin.copyApps.enable = lib.mkIf pkgs.stdenv.hostPlatform.isDarwin true;
-  targets.darwin.linkApps.enable = lib.mkIf pkgs.stdenv.hostPlatform.isDarwin false;
-
-  # Podman / docker CLI (k8sAndOci): SSH tunnel to VM and machine socket path.
-  home.sessionVariables = {
-    DOCKER_HOST = "ssh://root@127.0.0.1:63646";
-    DOCKER_SOCK = "/run/podman/podman.sock";
-  };
+  # Copy GUI apps into ~/Applications instead of symlinking them.
+  targets.darwin.copyApps.enable = true;
+  targets.darwin.linkApps.enable = false;
 
   home.packages =
     [kaynix-scripts]
@@ -212,13 +159,11 @@ in {
     ++ k8sAndOci
     ++ iacAndCD
     ++ cloud
-    ++ observability
     ++ databases
     ++ goTools
     ++ media
     ++ compilersAndRuntimes
-    ++ sshAndAge
+    ++ sshAndKeys
     ++ nixRebuildTools
-    ++ secops
-    ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin darwinOnly;
+    ++ desktop;
 }

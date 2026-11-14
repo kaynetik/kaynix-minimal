@@ -1,52 +1,68 @@
 {
+  pkgs,
+  hostname,
   username,
-  hostConfig,
   ...
 }: {
-  time.timeZone = hostConfig.timeZone or "Europe/Belgrade";
+  # Pins stateful defaults to a nix-darwin release. Read the nix-darwin
+  # changelog before raising it on an existing install.
+  system.stateVersion = 7;
+  system.primaryUser = username;
 
-  system = {
-    stateVersion = 5;
-    primaryUser = username;
+  users.users.${username}.home = "/Users/${username}";
 
-    defaults = {
-      menuExtraClock.Show24Hour = true;
+  time.timeZone = "Europe/Belgrade";
 
-      trackpad = {
-        Clicking = true;
-        Dragging = true;
-        TrackpadRightClick = true;
-      };
+  networking = {
+    hostName = hostname;
+    computerName = hostname;
+    # From `networksetup -listallnetworkservices`. VPN services are left out
+    # so they keep managing their own DNS.
+    knownNetworkServices = ["Wi-Fi" "Thunderbolt Bridge"];
+    dns = ["1.1.1.1" "1.0.0.1" "8.8.8.8" "8.8.4.4"];
+  };
 
-      dock = {
-        autohide = true;
-        magnification = true;
-        mru-spaces = false;
-        tilesize = 32;
-        largesize = 96;
-      };
+  fonts.packages =
+    [pkgs.sketchybar-app-font]
+    ++ (with pkgs.nerd-fonts; [jetbrains-mono fira-code meslo-lg]);
 
-      NSGlobalDomain = {
-        _HIHideMenuBar = true;
-      };
+  system.defaults = {
+    menuExtraClock.Show24Hour = true;
 
-      screencapture.location = "~/Pictures/screenshots";
-      screensaver.askForPasswordDelay = 15;
-
-      finder = {
-        ShowStatusBar = true;
-        ShowPathbar = true;
-        FXPreferredViewStyle = "clmv";
-        _FXShowPosixPathInTitle = true;
-        AppleShowAllExtensions = true;
-      };
-
-      loginwindow.LoginwindowText = hostConfig.loginGreeting or "nixing";
+    trackpad = {
+      Clicking = true;
+      Dragging = true;
+      TrackpadRightClick = true;
     };
+
+    dock = {
+      autohide = true;
+      magnification = true;
+      mru-spaces = false;
+      tilesize = 32;
+      largesize = 96;
+    };
+
+    # Hidden in favour of sketchybar.
+    NSGlobalDomain._HIHideMenuBar = true;
+
+    screencapture.location = "~/Pictures/screenshots";
+    screensaver.askForPasswordDelay = 15;
+
+    finder = {
+      ShowStatusBar = true;
+      ShowPathbar = true;
+      FXPreferredViewStyle = "clmv";
+      _FXShowPosixPathInTitle = true;
+      AppleShowAllExtensions = true;
+    };
+
+    loginwindow.LoginwindowText = "nixing";
   };
 
   security.pam.services.sudo_local.touchIdAuth = true;
 
   programs.zsh.enable = true;
+  # Home Manager's zsh config runs compinit itself (deferred).
   programs.zsh.enableGlobalCompInit = false;
 }

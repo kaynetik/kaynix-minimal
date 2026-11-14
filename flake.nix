@@ -1,24 +1,8 @@
 {
-  description = "Nix for macOS and Linux [kaynix]";
-
-  # the nixConfig here only affects the flake itself, not the system configuration!
-  nixConfig = {
-    substituters = [
-      "https://cache.nixos.org"
-      "https://nix-community.cachix.org"
-    ];
-    trusted-public-keys = [
-      "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-      "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
-    ];
-  };
+  description = "Minimal nix-darwin + Home Manager flake [kaynix-minimal]";
 
   inputs = {
     nixpkgs-darwin.url = "github:nixos/nixpkgs/nixpkgs-unstable";
-
-    # Alias so transitive inputs that expect "nixpkgs" by name (darwin,
-    # home-manager, sops-nix) all resolve to the same evaluated nixpkgs.
-    nixpkgs.follows = "nixpkgs-darwin";
 
     darwin = {
       url = "github:nix-darwin/nix-darwin";
@@ -29,274 +13,66 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs-darwin";
     };
-
-    sops-nix = {
-      url = "github:Mic92/sops-nix";
-      inputs.nixpkgs.follows = "nixpkgs-darwin";
-    };
-
-    # Declarative per-version Solidity compilers (pkgs.solc_0_8_19, etc.).
-    # Nix-native replacement for `svm install <ver>`.
-    solc-nix = {
-      url = "github:hellwolf/solc.nix";
-      inputs.nixpkgs.follows = "nixpkgs-darwin";
-    };
   };
 
-  # `inputs @ { ... }` binds flake inputs by name; `self` is the flake itself.
-  outputs = inputs @ {
+  outputs = {
     nixpkgs-darwin,
     darwin,
     home-manager,
-    sops-nix,
-    solc-nix,
     ...
   }: let
-    # Default sketchybar palette; hosts override via `config.sketchybar.theme`.
-    # Mirrored by the fallback in homes/static/sketchybar/colors.lua.
-    sketchybarThemeDefault = "rose_pine";
+    # Change these three for a new machine or user.
+    system = "aarch64-darwin";
+    hostname = "mbp";
+    username = "kaynetik";
 
-    # Reusable Home Manager modules. Another flake consumes the identity with
-    #   imports = [inputs.kaynix.homeManagerModules.kaynix-identity];
-    identityModule = import ./modules/home/identity.nix;
+    # Lint shell on the host and on Linux, where CI runs the pre-commit hooks.
+    eachLintSystem = f:
+      nixpkgs-darwin.lib.genAttrs [system "x86_64-linux"]
+      (s: f nixpkgs-darwin.legacyPackages.${s});
+  in {
+    darwinConfigurations.${hostname} = darwin.lib.darwinSystem {
+      inherit system;
+      specialArgs = {inherit hostname username;};
+      modules = [
+        ./modules/nix-core.nix
+        ./modules/system.nix
+        ./modules/pki.nix
+        ./modules/homebrew.nix
+        ./modules/sketchybar.nix
+        ./modules/aerospace.nix
 
-    # Overlay that exposes solc versions from solc-nix and our custom svm-rs.
-    kaynixOverlay = final: prev: let
-      # solc.nix still reads stdenv.isDarwin (eval warning). Shadow the
-      # alias with a plain bool before that overlay runs. Drop once
-      # hellwolf/solc.nix uses stdenv.hostPlatform.isDarwin.
-      solcPrev =
-        prev
-        // {
-          stdenv =
-            prev.stdenv
-            // {
-              isDarwin = prev.stdenv.hostPlatform.isDarwin;
-            };
-        };
-    in
-      (solc-nix.overlay final solcPrev)
-      // {
-        svm-rs = final.callPackage ./pkgs/svm-rs {};
-
-        # nixpkgs patchShebangs the hook template, so every `pre-commit install`
-        # writes a /nix/store/...-bash shebang into .git/hooks/pre-commit. After
-        # garbage collection or a bash bump the path is gone and git fails with
-        # "cannot exec '.git/hooks/pre-commit': No such file or directory".
-        # Restore the portable shebang. Tests are skipped: they assert the
-        # patched shebang. Drop once nixpkgs stops embedding a store bash in
-        # the hook template.
-        pre-commit = prev.pre-commit.overridePythonAttrs (old: {
-          doCheck = false;
-          doInstallCheck = false;
-          dontUsePytestCheck = true;
-          postFixup =
-            (old.postFixup or "")
-            + ''
-              sed -i '1s|^#!.*|#!/usr/bin/env bash|' \
-                "$(find "$out" -path '*pre_commit/resources/hook-tmpl')"
-            '';
-        });
-
-        # checkov pulls bc-detect-secrets. unidiff rejects test_data/sample.diff:
-        # the last git header names setup.py and the ---/+++ lines name
-        # .secrets.baseline. TestScanDiff expects the baseline path. Drop once
-        # detect-secrets or nixpkgs fixes that fixture.
-        pythonPackagesExtensions =
-          prev.pythonPackagesExtensions
-          ++ [
-            (_pyfinal: pyprev: {
-              bc-detect-secrets = pyprev.bc-detect-secrets.overridePythonAttrs (old: {
-                postPatch =
-                  (old.postPatch or "")
-                  + ''
-                    substituteInPlace test_data/sample.diff \
-                      --replace-fail $'diff --git a/setup.py b/setup.py\nindex 12ce201..02fcca5 200644' \
-                      $'diff --git a/.secrets.baseline b/.secrets.baseline\nindex 12ce201..02fcca5 100644'
-                  '';
-              });
-            })
-          ];
-
-        # cargoSetupHook sets AWS_LC_SYS_USE_SYSTEM=1. aws-lc-sys 0.44 then
-        # requires a system AWS-LC and rejects openssl (no openssl/base.h).
-        # Drop once nixpkgs#587267 is in nixpkgs-unstable.
-        rabbitmqadmin-ng = prev.rabbitmqadmin-ng.overrideAttrs (old: {
-          buildInputs = (old.buildInputs or []) ++ [final.aws-lc];
-        });
-
-        # Same hook: foundry's aws-lc-sys, zstd-sys, libsqlite3-sys, and
-        # jemalloc-sys are told to use system libraries that the package
-        # does not provide. Drop once nixpkgs#587157 is in nixpkgs-unstable.
-        foundry = prev.foundry.overrideAttrs (old: {
-          buildInputs =
-            (old.buildInputs or [])
-            ++ [
-              final.aws-lc
-              final.rust-jemalloc-sys
-              final.sqlite
-              final.zstd
-            ];
-        });
-
-        # Shared non-package values. `luaCpath` is the one sketchybar Lua
-        # runtime search path, so a lua5_5/sbarlua bump reaches every
-        # consumer at once.
-        kaynixLib = let
-          luaLibDir = drv: "${drv}/lib/lua/${final.lua5_5.luaversion}";
-        in {
-          luaCpath = final.lib.concatStringsSep ";" [
-            "${luaLibDir final.lua5_5}/?.so"
-            "${luaLibDir final.lua5_5}/loadall.so"
-            "${luaLibDir final.sbarlua}/?.so"
-            "./?.so"
-          ];
-        };
-      };
-
-    # Per-host config. Add an entry here when deploying to a new machine.
-    # Shared defaults live in the modules; `config` overrides per machine.
-    hosts = {
-      mbp = {
-        system = "aarch64-darwin";
-        username = "kaynetik";
-        config = {
-          homeStateVersion = "26.05";
-        };
-      };
-    };
-
-    mkDarwin = hostname: hostCfg: let
-      inherit (hostCfg) system username;
-      # Shared host defaults; per-host `config` entries override them, so
-      # modules can read e.g. `hostConfig.sketchybar.theme` without fallbacks.
-      hostConfig = nixpkgs-darwin.lib.recursiveUpdate {
-        sketchybar.theme = sketchybarThemeDefault;
-      } (hostCfg.config or {});
-      specialArgs =
-        inputs
-        // {
-          inherit username hostname hostConfig;
-        };
-    in
-      darwin.lib.darwinSystem {
-        inherit system specialArgs;
-        modules = [
-          {nixpkgs.overlays = [kaynixOverlay];}
-
-          ./modules/nix-core.nix
-          ./modules/system.nix
-          ./modules/pki.nix
-          ./modules/homebrew.nix
-          ./modules/fonts.nix
-          ./modules/sketchybar.nix
-          ./modules/aerospace.nix
-          ./modules/host-users.nix
-          ./modules/netbird.nix
-
-          home-manager.darwinModules.home-manager
-          {
-            home-manager.useGlobalPkgs = true;
-            home-manager.useUserPackages = true;
-            home-manager.extraSpecialArgs = {
-              inherit username hostConfig;
+        home-manager.darwinModules.home-manager
+        {
+          home-manager = {
+            useGlobalPkgs = true;
+            useUserPackages = true;
+            backupFileExtension = "hm-backup";
+            extraSpecialArgs = {
+              inherit username;
               kaynixStatic = ./homes/static;
             };
-            home-manager.sharedModules = [sops-nix.homeManagerModules.sops];
-            home-manager.backupFileExtension = "hm-backup";
-            home-manager.users.${username} = import ./homes/kaynetik.nix;
-          }
-        ];
-      };
-
-    # Selects the devShells system, so keep it on the machine in daily use.
-    primaryHost = hosts.mbp;
-
-    # CI lints on Linux; the flake's other outputs stay darwin-only.
-    ciSystem = "x86_64-linux";
-    ciPkgs = nixpkgs-darwin.legacyPackages.${ciSystem};
+            users.${username} = import ./homes/kaynetik.nix;
+          };
+        }
+      ];
+    };
 
     # Tools the pre-commit hooks call (see .pre-commit-config.yaml).
-    lintTools = pkgs:
-      with pkgs; [
-        alejandra
-        statix
-        deadnix
-        gitleaks
-        shellcheck
-        stylua
-        pre-commit
-      ];
-  in {
-    darwinConfigurations = builtins.mapAttrs mkDarwin hosts;
-
-    homeManagerModules = {
-      kaynix-identity = identityModule;
-      default = identityModule;
-    };
-
-    # home.packages is the always-available baseline. Dev shells exist only where
-    # they add something it does not: the lint set pinned to this flake's nixpkgs
-    # (what CI runs), a python toolchain, and the sketchybar Lua environment.
-    devShells.${primaryHost.system} = let
-      pkgs = import inputs.nixpkgs-darwin {
-        inherit (primaryHost) system;
-        config.allowUnfree = true;
-        overlays = [kaynixOverlay];
-      };
-    in {
-      # Same tool set CI uses; everything else comes from home.packages.
+    devShells = eachLintSystem (pkgs: {
       default = pkgs.mkShell {
-        buildInputs = lintTools pkgs;
-      };
-
-      python = pkgs.mkShell {
-        buildInputs = with pkgs; [
-          uv
-          python3
-          ruff
-          basedpyright
-          git
+        packages = with pkgs; [
+          alejandra
+          statix
+          deadnix
+          gitleaks
+          shellcheck
+          stylua
+          pre-commit
         ];
-        shellHook = ''
-          echo "Python shell: $(python3 --version), uv $(uv --version)"
-        '';
       };
+    });
 
-      # SketchyBar: format Lua config (StyLua), same lua5_5 + LUA_CPATH as launchd (modules/sketchybar.nix).
-      sketchybar = pkgs.mkShell {
-        buildInputs =
-          (with pkgs; [
-            stylua
-            git
-            lua5_5
-            sbarlua
-            sketchybar
-          ])
-          ++ [pkgs."lua-language-server"];
-        shellHook = ''
-          _repo="$(git rev-parse --show-toplevel 2>/dev/null || true)"
-          if [ -n "$_repo" ] && [ -d "$_repo/homes/static/sketchybar" ]; then
-            export CONFIG_DIR="$_repo/homes/static/sketchybar"
-          else
-            export CONFIG_DIR="''${PWD}/homes/static/sketchybar"
-          fi
-          export SKETCHYBAR_THEME="''${SKETCHYBAR_THEME:-${sketchybarThemeDefault}}"
-          export LUA_CPATH="${pkgs.kaynixLib.luaCpath}"
-          echo "SketchyBar dev shell: lua $(lua -v 2>&1 | head -n1), stylua $(stylua --version)"
-          echo "  CONFIG_DIR=$CONFIG_DIR"
-          echo "  check:  stylua --check \"\$CONFIG_DIR\""
-          echo "  fmt:    stylua \"\$CONFIG_DIR\""
-          echo "  reload: sketchybar --reload"
-        '';
-      };
-    };
-
-    devShells.${ciSystem}.default = ciPkgs.mkShell {
-      buildInputs = lintTools ciPkgs;
-    };
-
-    formatter.${primaryHost.system} = inputs.nixpkgs-darwin.legacyPackages.${primaryHost.system}.alejandra;
-    formatter.${ciSystem} = ciPkgs.alejandra;
+    formatter = eachLintSystem (pkgs: pkgs.alejandra);
   };
 }

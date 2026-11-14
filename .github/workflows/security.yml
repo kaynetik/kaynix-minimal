@@ -131,10 +131,10 @@ jobs:
         uses: DeterminateSystems/nix-installer-action@v21
 
       - name: Flake check (no build)
-        run: nix flake check --no-build --accept-flake-config
+        run: nix flake check --no-build
 
       - name: Build formatter output
-        run: nix build .#formatter.aarch64-darwin -L --accept-flake-config -o result
+        run: nix build .#formatter.aarch64-darwin -L -o result
 
       - name: Install Grype and Syft
         run: brew install grype syft
